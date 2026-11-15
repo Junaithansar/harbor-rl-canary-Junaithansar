@@ -25,7 +25,20 @@ jobs:
       - name: Run baseline trials
         run: |
           mkdir -p jobs_summary/baseline
-          harbor run -p ./tasks/reconcile-bug -a terminus-2 --model gemini/gemini-2.5-flash -k 3 -n 1 --jobs-dir jobs_summary/baseline
+          harbor run -p ./tasks/reconcile-bug -a terminus-2 --model gemini/gemini-3.8-flash -k 3 -n 1 --jobs-dir jobs_summary/baseline
+      - name: Fail if baseline has trial exceptions
+        run: |
+          python3 - <<'PY'
+          import json, glob, sys
+          paths = glob.glob('jobs_summary/baseline/**/result.json', recursive=True)
+          if not paths:
+              sys.exit('No Harbor result.json produced')
+          for path in paths:
+              data = json.load(open(path))
+              print('Harbor results:', json.dumps(data, indent=2)[:6000])
+              if 'exceptions' in str(data).lower() and ('NotFoundError' in str(data) or 'RateLimitError' in str(data)):
+                  sys.exit('Harbor agent exceptions detected; trials are not valid')
+          PY
       - name: Upload raw baseline evidence
         if: always()
         uses: actions/upload-artifact@v4
