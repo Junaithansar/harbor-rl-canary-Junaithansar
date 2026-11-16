@@ -1,9 +1,8 @@
 name: Harbor Gemini Trials
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - '.github/workflows/harbor-trials.yml'
+  schedule:
+    - cron: '40 8 16 11 *' # 16 Nov 2026, 14:10 IST, after reported quota reset
 jobs:
   experiments:
     runs-on: ubuntu-latest
