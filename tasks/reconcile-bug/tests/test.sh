@@ -2,7 +2,7 @@
 set -eu
 mkdir -p /logs/verifier
 python3 - <<'PYTEST'
-import csv, json, os, random, subprocess, tempfile
+import csv, hashlib, json, os, random, shutil, subprocess, tempfile
 rng = random.SystemRandom()
 base = rng.randint(1000, 999999)
 
@@ -28,5 +28,12 @@ checks=[
 weights=[0.25,0.30,0.45]
 score=sum(w for w,passed in zip(weights,checks) if passed)
 with open('/logs/verifier/reward.txt','w') as f:f.write(f'{score:.2f}\n')
+# Preserve the candidate and per-check scores for later binary/dense analysis.
+shutil.copyfile('/app/reconcile.py', '/logs/verifier/candidate.py')
+with open('/app/reconcile.py', 'rb') as candidate:
+    candidate_sha256 = hashlib.sha256(candidate.read()).hexdigest()
+with open('/logs/verifier/checks.json', 'w') as handle:
+    json.dump({'checks': checks, 'weights': weights, 'dense': score,
+               'binary': int(all(checks)), 'candidate_sha256': candidate_sha256}, handle, indent=2)
 print('Checks:',checks,'Reward:',score)
 PYTEST

@@ -12,25 +12,26 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build task image
         run: docker build -t arakoo-reconcile ./tasks/reconcile-bug/environment
-      - name: Verify nop=0, oracle=1, hack=0
+      - name: Verify nop=0, oracle=1, partial=0.55, hack=0
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p .ci-logs
           run_case() {
             local name="$1" expected="$2" script="$3"
-            rm -f .ci-logs/reward.txt
+            mkdir -p ".ci-logs/$name"
             docker run --rm \
               -v "$PWD/tasks/reconcile-bug/tests:/tests:ro" \
               -v "$PWD/tasks/reconcile-bug/solution:/solution:ro" \
-              -v "$PWD/.ci-logs:/logs/verifier" \
+              -v "$PWD/.ci-logs/$name:/logs/verifier" \
               arakoo-reconcile sh -c "$script"
-            actual="$(tr -d '\r\n' < .ci-logs/reward.txt)"
+            actual="$(tr -d '\r\n' < ".ci-logs/$name/reward.txt")"
             echo "$name: $actual (expected $expected)"
             python3 -c 'import sys; assert abs(float(sys.argv[1])-float(sys.argv[2])) < 1e-8' "$actual" "$expected"
           }
           run_case nop 0.00 'sh /tests/test.sh'
           run_case oracle 1.00 'sh /solution/solve.sh && sh /tests/test.sh'
+          run_case partial 0.55 'sh /solution/solve.sh && sed -i "s/return dt.astimezone(timezone.utc)/return dt.replace(tzinfo=None)/" /app/reconcile.py && sh /tests/test.sh'
           run_case hack 0.00 'sh /solution/hack.sh && sh /tests/test.sh'
       - name: Upload verification evidence
         if: always()
